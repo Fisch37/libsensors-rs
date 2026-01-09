@@ -1,4 +1,4 @@
-use libsensor_rs::LibSensors;
+use libsensors_rs::LibSensors;
 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

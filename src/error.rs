@@ -28,13 +28,15 @@ impl StdError for SensorsError { }
 #[derive(Debug)]
 pub enum Error {
     Sensors(SensorsError),
-    Loading(libloading::Error)
+    Loading(libloading::Error),
+    UnexpectedWildcard(i64)
 }
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Sensors(e) => write!(f, "Sensors({e})"),
-            Self::Loading(e) => write!(f, "Loading({e})")
+            Self::Loading(e) => write!(f, "Loading({e})"),
+            Self::UnexpectedWildcard(value) => write!(f, "Unexpected wildcard value: {value}")
         }
     }
 }

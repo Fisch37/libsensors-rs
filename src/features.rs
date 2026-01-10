@@ -2,7 +2,7 @@ use std::{error::Error as StdError, ffi::{CStr, CString, c_char, c_int}, fmt::Di
 
 use libloading::Symbol;
 
-use crate::{GetAllSubfeatures, LibSensors, error::Result, ffi::{sensors_chip_name, sensors_feature, sensors_subfeature, sensors_subfeature_type}, subfeature::Subfeature, utils::{GLibCBox, ptr_to_ref}};
+use crate::{GetAllSubfeatures, LibSensors, error::{Error, Result}, ffi::{self, sensors_chip_name, sensors_feature, sensors_subfeature, sensors_subfeature_type}, subfeature::Subfeature, utils::{GLibCBox, ptr_to_ref}};
 
 #[derive(Debug)]
 pub enum GetLabelError {
@@ -29,17 +29,26 @@ impl StdError for GetLabelError { }
 pub struct Feature<'lib> {
     lib: &'lib LibSensors,
     chip: &'lib sensors_chip_name,
-    raw: &'lib sensors_feature
+    raw: &'lib sensors_feature,
+    type_: FeatureType
 }
 impl<'lib> Feature<'lib> {
-    pub fn new(lib: &'lib LibSensors, chip: &'lib sensors_chip_name, raw: &'lib sensors_feature) -> Self {
-        Self { lib, chip, raw }
+    pub fn new(lib: &'lib LibSensors, chip: &'lib sensors_chip_name, raw: &'lib sensors_feature) -> Result<Self> {
+        Ok(Self {
+            lib, chip, raw,
+            type_: FeatureType::from_repr(raw.type_).ok_or(Error::UnexpectedWildcard(raw.type_ as i64))?
+        })
     }
 
-    pub fn get_subfeature_by_type(&self, type_: sensors_subfeature_type) -> Result<Option<Subfeature<'lib>>> {
+    pub fn get_type(&self) -> FeatureType {
+        self.type_
+    }
+
+    pub fn get_subfeature_by_type(&self, type_: sensors_subfeature_type::Type) -> Result<Option<Subfeature<'lib>>> {
         self.lib._sensors_get_subfeature()
             .map(|sym| {
-                unsafe { ptr_to_ref(sym(self.chip, self.raw, type_)) }.unwrap()
+                unsafe { ptr_to_ref(sym(self.chip, self.raw, type_)) }
+                    .expect("get_subfeature_by_type: ptr is misaligned")
             })
             .map(|raw_opt| raw_opt.map(|raw| Subfeature::new(raw, self.chip, self.lib)))
             .map_err(Into::into)
@@ -90,7 +99,7 @@ impl<'lib> Feature<'lib> {
                     //  - Libsensors guarantees us that the returned pointer is either null or points to a valid c-string.
                     //    - contains null terminator, valid for reads up to the null terminator
                     //  - we own that memory now and Libsensors won't modify it either.
-                    //     (Nor do we, as it will be freed after this call)
+                    //     (Nor do we, as it will be freed after to_owned)
                     //  - TODO: Technically we can't know whether strlen(raw) <= isize::MAX
                     Some(unsafe { CStr::from_ptr(*raw) }.to_owned())
                 }
@@ -98,17 +107,11 @@ impl<'lib> Feature<'lib> {
     }
 
     pub fn get_label(&self) -> StdResult<String, GetLabelError> {
-        self.get_label_extremely_raw()
-            .map_err(GetLabelError::LibSensors)
-            .and_then(|raw| {
-                if raw.is_null() {
-                    Err(GetLabelError::GetLabelFailed)
-                } else {
-                    unsafe { CStr::from_ptr(*raw) }.to_str()
-                        .map_err(GetLabelError::Utf8)
-                        .map(str::to_owned)
-                }
-            })
+        self.get_label_raw()
+            .map_err(GetLabelError::LibSensors)?
+            .ok_or(GetLabelError::GetLabelFailed)?
+            .into_string()
+            .map_err(|e| GetLabelError::Utf8(e.utf8_error()))
     }
 
     pub fn get_name(&self) -> &CStr {
@@ -136,3 +139,22 @@ impl<'lib> Iterator for SubfeatureIterator<'lib> {
             .map(|raw| Subfeature::new(raw, self.chip, self.lib))
     }
 }
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, strum::FromRepr)]
+pub enum FeatureType {
+    In = 0,
+    Fan = 1,
+    Temp = 2,
+    Power = 3,
+    Energy = 4,
+    Current = 5,
+    Humidity = 6,
+    MaxMain = ffi::sensors_feature_type::SENSORS_FEATURE_MAX_MAIN,
+    Vid = 0x10,
+    Intrusion = 0x11,
+    MaxOther = ffi::sensors_feature_type::SENSORS_FEATURE_MAX_OTHER,
+    BeepEnable = 0x18,
+    Max = ffi::sensors_feature_type::SENSORS_FEATURE_MAX
+}
+

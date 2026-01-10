@@ -1,6 +1,14 @@
-use std::{borrow::Borrow, ffi::c_void, ops::Deref};
+use std::{borrow::Borrow, ffi::{CStr, c_void}, ops::Deref};
 
 
+#[inline]
+/// This wonderful function transforms an Option<Result<T, E>> into a Result<Option<T>, E>.
+/// If opt is None, then Ok(None) is returned. If opt is Some(Ok(x)), Ok(Some(x)) is returned.
+/// If opt is Some(Err(e)) Err(e) is returned.
+pub fn invert_res_opt<T, E>(opt: Option<Result<T, E>>) -> Result<Option<T>, E> {
+    opt.map(|r| r.map(Some))
+        .unwrap_or(Ok(None))
+}
 
 /// Converts a raw pointer into a safe reference, valid for a given lifetime (inferred from usage).
 /// 
@@ -20,6 +28,21 @@ pub unsafe fn ptr_to_ref<'a, T>(ptr: *const T) -> Result<Option<&'a T>, ()> {
         // Caller has guaranteed that the reference is valid for the lifetime 'a
         // and contains valid data. 
         Ok(Some(unsafe { &*ptr }))
+    }
+}
+
+/// Tries to convert a pointer into a borrowed CStr, returning None if the pointer is null.
+/// 
+/// # Safety
+/// If `ptr` is non-null, the caller must uphold all the safety requirements for [`CStr::from_ptr`].
+/// If it is null, there are no safety requirements.
+pub unsafe fn try_cstr<'a>(ptr: *const i8) -> Option<&'a CStr> {
+    if ptr.is_null() {
+        None
+    } else {
+        // i8 is 1-byte, pointers cannot be misaligned
+        // SAFETY: All safety guarantees for this call are explicitly upheld by the caller.
+        Some(unsafe { CStr::from_ptr(ptr) })
     }
 }
 
@@ -56,11 +79,11 @@ impl<T> Deref for GLibCBox<T> {
 }
 impl<T> Borrow<*mut T> for GLibCBox<T> {
     fn borrow(&self) -> &*mut T {
-        &*self
+        self
     }
 }
 impl<T> AsRef<*mut T> for GLibCBox<T> {
     fn as_ref(&self) -> &*mut T {
-        &*self
+        self
     }
 }

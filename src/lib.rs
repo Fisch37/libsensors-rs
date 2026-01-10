@@ -1,7 +1,7 @@
 use std::{ffi::{c_char, c_double, c_int}, fmt::Display, os::raw::c_void, ptr, result::Result as StdResult, sync::atomic::{AtomicBool, Ordering as MemOrdering}};
 use libloading::{Library, Symbol};
 use log::warn;
-use crate::{chips::Chip, error::SensorsError, utils::{GLibCFree, ptr_to_ref}};
+use crate::{chips::Chip, error::SensorsError, utils::{GLibCFree, invert_res_opt, ptr_to_ref}};
 
 use self::error::{Error, Result};
 
@@ -61,7 +61,7 @@ impl LibSensors {
         // Acquire guarantees nobody stores, while we're reading.
         // Release guarantees nobody reads, while we're storing.
         if LIBSENSORS_DOES_NOT_EXIST.fetch_and(false, MemOrdering::AcqRel) {
-            unsafe { Library::new("libsensors.so") }
+            unsafe { Library::new("libsensors.so.5") }
                 .map_err(Into::into)
                 .and_then(|inner| {
                     SensorsError::convert_cint(
@@ -91,8 +91,8 @@ impl LibSensors {
     pub fn get_chip<'lib>(&'lib self, mut index: c_int) -> Result<Option<Chip<'lib>>> {
         let fun = self._sensors_get_detected_chips()?;
         let raw = unsafe { fun(ptr::null(), &mut index) };
-        Ok(
-            unsafe { ptr_to_ref(raw) }.unwrap()
+        invert_res_opt(
+            unsafe { ptr_to_ref(raw) }.expect("get_chip: ptr not aligned")
                 .map(|c| Chip::new(self, c))
         )
     }
@@ -139,7 +139,7 @@ impl LibSensors {
         unsafe { self.inner.get(c"sensors_get_all_subfeatures") }
     }
 
-    pub(crate) fn _sensors_get_subfeature(&self) -> SymbolResult<'_, unsafe extern "C" fn(*const ffi::sensors_chip_name, *const ffi::sensors_feature, ffi::sensors_subfeature_type) -> *const ffi::sensors_subfeature> {
+    pub(crate) fn _sensors_get_subfeature(&self) -> SymbolResult<'_, unsafe extern "C" fn(*const ffi::sensors_chip_name, *const ffi::sensors_feature, ffi::sensors_subfeature_type::Type) -> *const ffi::sensors_subfeature> {
         unsafe { self.inner.get(c"sensors_get_subfeature") }
     }
 
@@ -167,10 +167,10 @@ impl<'lib> ChipIterator<'lib> {
     }
 }
 impl<'lib> Iterator for ChipIterator<'lib> {
-    type Item = Chip<'lib>;
+    type Item = Result<Chip<'lib>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let ptr = unsafe { (&self.fun)(ptr::null(), &mut self.index) };
+        let ptr = unsafe { (self.fun)(ptr::null(), &mut self.index) };
         unsafe { ptr_to_ref(ptr) }.unwrap().map(|c| Chip::new(self.lib, c))
     }
 }

@@ -71,7 +71,7 @@ impl GenericSubfeature {
                 match feature_type {
                     FeatureType::In => SENSORS_SUBFEATURE_IN_INPUT,
                     FeatureType::Fan => SENSORS_SUBFEATURE_FAN_INPUT,
-                    FeatureType::Temp => SENSORS_SUBFEATURE_FAN_INPUT,
+                    FeatureType::Temp => SENSORS_SUBFEATURE_TEMP_INPUT,
                     FeatureType::Power => SENSORS_SUBFEATURE_POWER_INPUT,
                     FeatureType::Energy => SENSORS_SUBFEATURE_ENERGY_INPUT,
                     FeatureType::Current => SENSORS_SUBFEATURE_CURR_INPUT,

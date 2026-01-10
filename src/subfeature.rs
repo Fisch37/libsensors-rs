@@ -1,6 +1,6 @@
 use std::ffi::{CStr, c_double};
 
-use crate::{LibSensors, error::{Result, SensorsError}, features::FeatureType, ffi::{self, sensors_chip_name, sensors_subfeature}};
+use crate::{LibSensors, error::{Result, SensorsError}, feature::FeatureType, ffi::{self, sensors_chip_name, sensors_subfeature}};
 
 
 

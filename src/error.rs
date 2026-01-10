@@ -1,4 +1,4 @@
-use std::{ffi::{c_int, c_uint}, error::Error as StdError, fmt::Display};
+use std::{error::Error as StdError, ffi::{c_int, c_uint}, fmt::Display, str::Utf8Error};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -29,14 +29,16 @@ impl StdError for SensorsError { }
 pub enum Error {
     Sensors(SensorsError),
     Loading(libloading::Error),
-    UnexpectedWildcard(i64)
+    Utf8(Utf8Error),
+    UnexpectedWildcard(i64),
 }
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Sensors(e) => write!(f, "Sensors({e})"),
             Self::Loading(e) => write!(f, "Loading({e})"),
-            Self::UnexpectedWildcard(value) => write!(f, "Unexpected wildcard value: {value}")
+            Self::Utf8(e) => write!(f, "Utf8({e})"),
+            Self::UnexpectedWildcard(value) => write!(f, "Unexpected wildcard value: {value}"),
         }
     }
 }
@@ -49,5 +51,10 @@ impl From<SensorsError> for Error {
 impl From<libloading::Error> for Error {
     fn from(value: libloading::Error) -> Self {
         Self::Loading(value)
+    }
+}
+impl From<Utf8Error> for Error {
+    fn from(value: Utf8Error) -> Self {
+        Self::Utf8(value)
     }
 }

@@ -1,16 +1,20 @@
 use std::{ffi::{c_char, c_double, c_int}, fmt::Display, os::raw::c_void, ptr, result::Result as StdResult, sync::atomic::{AtomicBool, Ordering as MemOrdering}};
 use libloading::{Library, Symbol};
 use log::warn;
-use crate::{chips::Chip, error::SensorsError, utils::{GLibCFree, invert_res_opt, ptr_to_ref}};
+use crate::{error::SensorsError, utils::{GLibCFree, invert_res_opt, ptr_to_ref}};
 
 use self::error::{Error, Result};
 
-pub mod chips;
+pub mod chip;
 pub mod error;
-pub mod features;
+pub mod feature;
 pub mod subfeature;
 mod ffi;
 mod utils;
+
+pub use chip::{Chip, BusType, BusId};
+pub use feature::Feature;
+pub use subfeature::{Subfeature, GenericSubfeature};
 
 #[derive(Debug)]
 pub enum LoadingError {

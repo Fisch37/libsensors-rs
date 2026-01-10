@@ -2,7 +2,7 @@ use std::ffi::{CStr, c_int, c_short};
 
 use libloading::Symbol;
 
-use crate::{GetFeatures, LibSensors, error::{Error, Result}, features::Feature, ffi::{self, sensors_bus_id, sensors_chip_name}, utils::{invert_res_opt, ptr_to_ref, try_cstr}};
+use crate::{GetFeatures, LibSensors, error::{Error, Result}, feature::Feature, ffi::{self, sensors_bus_id, sensors_chip_name}, utils::{invert_res_opt, ptr_to_ref, try_cstr}};
 
 unsafe fn get_feature_raw<'lib>(
     fun: &Symbol<'lib, GetFeatures>,
@@ -33,18 +33,25 @@ impl<'lib> Chip<'lib> {
         })
     }
 
-    pub fn get_name(&self) -> Result<Option<&'lib CStr>> {
+    pub fn get_name_raw(&self) -> Result<Option<&'lib CStr>> {
         let fun = self.lib._sensors_get_adapter_name()?;
         // SAFETY: I can call sensors_get_adapter_name at any time. There are no safety requirements
         //  The passed pointer trivially lives as long as fun & it isn't stored by fun.
         let raw = unsafe { fun(&self.raw.bus) };
         // SAFETY: We are assuming that libsensors returns a correct C-string.
-        //  This means that it is contains a NUL and is valid for reads until the first NUL.
+        //  This means that it contains a NUL and is valid for reads until the first NUL.
         //  sensors_get_adapter_name also returns a pointer from libsensors internal storage,
         //   which means that it lives until sensors_cleanup (i.e. the lifetime of self.lib).
         //  libsensors (probably!) doesn't mutate the adapter name for its lifetime (TODO: Verify this)
         //  FIXME: Technically there is nothing preventing strlen(raw) > isize::MAX, even though it is very unlikely.
         Ok(unsafe { try_cstr(raw) })
+    }
+
+    pub fn get_name(&self) -> Result<Option<&'lib str>> {
+        invert_res_opt(
+            self.get_name_raw()?
+                .map(|c| c.to_str())
+        ).map_err(Into::into)
     }
 
     pub fn get_prefix(&self) -> &'lib CStr {

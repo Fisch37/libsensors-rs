@@ -6,14 +6,12 @@ use crate::{GetAllSubfeatures, LibSensors, error::{Error, Result}, ffi::{self, s
 
 #[derive(Debug)]
 pub enum GetLabelError {
-    Utf8(std::str::Utf8Error),
     GetLabelFailed,
     LibSensors(crate::error::Error)
 }
 impl Display for GetLabelError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let (pre, e): (&'static str, Option<&dyn StdError>) = match self {
-            Self::Utf8(e) => ("Utf8", Some(e)),
             Self::GetLabelFailed => ("GetLabelFailed", None),
             Self::LibSensors(e) => ("LibSensors", Some(e))
         };
@@ -111,7 +109,7 @@ impl<'lib> Feature<'lib> {
             .map_err(GetLabelError::LibSensors)?
             .ok_or(GetLabelError::GetLabelFailed)?
             .into_string()
-            .map_err(|e| GetLabelError::Utf8(e.utf8_error()))
+            .map_err(|e| GetLabelError::LibSensors(e.utf8_error().into()))
     }
 
     pub fn get_name(&self) -> &CStr {

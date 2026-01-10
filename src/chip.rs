@@ -14,6 +14,7 @@ unsafe fn get_feature_raw<'lib>(
         .map(|f| Feature::new(lib, chip, f))
 }
 
+#[derive(Debug)]
 pub struct Chip<'lib> {
     lib: &'lib LibSensors,
     raw: &'lib sensors_chip_name,

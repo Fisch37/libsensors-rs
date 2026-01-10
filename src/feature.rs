@@ -24,6 +24,7 @@ impl Display for GetLabelError {
 }
 impl StdError for GetLabelError { }
 
+#[derive(Debug)]
 pub struct Feature<'lib> {
     lib: &'lib LibSensors,
     chip: &'lib sensors_chip_name,

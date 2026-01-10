@@ -3,7 +3,7 @@ use std::ffi::{CStr, c_double};
 use crate::{LibSensors, error::{Result, SensorsError}, feature::FeatureType, ffi::{self, sensors_chip_name, sensors_subfeature}};
 
 
-
+#[derive(Debug)]
 pub struct Subfeature<'lib> {
     lib: &'lib LibSensors,
     chip: &'lib sensors_chip_name,

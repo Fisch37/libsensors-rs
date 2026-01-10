@@ -63,6 +63,10 @@ impl<'lib> Chip<'lib> {
         self.bus
     }
 
+    pub fn get_address(&self) -> c_int {
+        self.raw.addr
+    }
+
     pub fn get_feature(&self, index: c_int) -> Result<Option<Feature<'lib>>> {
         self.lib._sensors_get_features()
             .map_err(Into::into)

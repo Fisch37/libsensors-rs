@@ -156,6 +156,13 @@ impl Drop for LibSensors {
         if let Err(e) = self.close_inner() {
             warn!("Failed to load sensors_cleanup: {e}")
         }
+        // Given that we've previously ensured that only one instance of this exists,
+        // this must necessarily be true on Drop as well.
+        // Therefore, if anyone tries to call LibSensors::init before this line,
+        // they will fail, because LIBSENSORS_DOES_NOT_EXIST == false.
+        // If they run after this line, everything works as intended, because close_inner already happened.
+        // Since this operation is atomic, nothing can happen within this line; proof by exhaustion.
+        LIBSENSORS_DOES_NOT_EXIST.store(true, MemOrdering::Relaxed);
     }
 }
 
